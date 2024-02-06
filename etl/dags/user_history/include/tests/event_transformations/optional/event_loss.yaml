@@ -1,0 +1,67 @@
+- name: Event loss in {app_id}_raw.ctx_event_context is under threshold
+  query: |
+    WITH unique_pairs AS (
+      SELECT DISTINCT
+        installation_id,
+        params.event_index AS event_index
+      FROM `{project}.{app_id}_raw.ctx_event_context`
+      WHERE date_ = '{execution_date}' 
+        AND DATE(event_tstamp) = DATE(dvce_created_tstamp) 
+        AND installation_id IS NOT NULL 
+        AND NOT STARTS_WITH(v_tracker, 'unity-0.5.')
+      ),
+
+    gaps AS (
+      SELECT
+        event_index - COALESCE(LAG(event_index) 
+        OVER (PARTITION BY installation_id ORDER BY event_index), event_index - 1) - 1 AS gap
+      FROM unique_pairs
+      ),
+
+    removed_backslashes AS (
+      SELECT 
+        REPLACE(JSON_QUERY(data, '$.payload.enriched.contexts'), '\\\"' ,'\"') 
+        AS backslash_removed_json
+      FROM `{project}.gametuner_monitoring.v_enrich_bad_events`
+      WHERE DATE(load_tstamp) = '{execution_date}' 
+      AND app_id = '{app_id}'
+    ),
+
+    trimmed AS(
+      SELECT 
+        PARSE_JSON(RIGHT(LEFT(backslash_removed_json, LENGTH(backslash_removed_json)-1), LENGTH(backslash_removed_json)-2),wide_number_mode=>'round') 
+        AS trimmed_json
+      FROM  removed_backslashes
+    ),
+
+    pairs_without_bad_events_num AS (
+      SELECT DISTINCT
+        installation_id,
+        event_index 
+      FROM unique_pairs
+      EXCEPT DISTINCT
+      SELECT 
+        JSON_QUERY(data,'$.payload.raw.parameters[7].value'),
+        CAST(TO_JSON_STRING(JSON_QUERY(trimmed_json, '$.data[0].data.event_index')) AS INT64)
+      FROM `{project}.gametuner_monitoring.v_enrich_bad_events`, trimmed
+      WHERE DATE(load_tstamp) = '{execution_date}' AND trimmed_json IS NOT NULL
+    )
+
+    SELECT SUM(gap) / (SUM(gap) + COUNT(*) + (SELECT COUNT(*)FROM pairs_without_bad_events_num)) * 100
+    FROM gaps
+    HAVING SUM(gap) / (SUM(gap) + COUNT(*) + (SELECT COUNT(*)FROM pairs_without_bad_events_num)) * 100 > 2
+
+- name: No duplicate event_index by installation_id in {app_id}_raw.ctx_event_context
+  query: |
+   WITH invalid AS (
+     SELECT
+       installation_id, params.event_index, COUNT(*) AS cnt
+     FROM `{project}.{app_id}_raw.ctx_event_context`
+     WHERE date_ = '{execution_date}'
+       AND installation_id IS NOT NULL
+     GROUP BY 1,2
+     HAVING COUNT(*) > 1
+   )
+   SELECT COUNT(*)
+   FROM invalid
+   HAVING COUNT(*) > 0

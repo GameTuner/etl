@@ -1,0 +1,18 @@
+- name: Cloud SQL is in sync with BigQuery
+  query: |
+    DECLARE uh_table INT64;
+    SET uh_table = 
+      (SELECT COUNT(*) FROM `oss-gametuner-infra-production.demoapp_main`.INFORMATION_SCHEMA.TABLES
+      WHERE table_name = 'user_history');
+    IF uh_table = 0 THEN
+      RETURN;
+    ELSE
+    WITH cloud_sql_table AS (
+        SELECT * FROM EXTERNAL_QUERY("{project}.{unique_id_bq_connection}",
+    "SELECT unique_id FROM public.unique_id_mapping WHERE app_id='{app_id}';")
+    )
+    SELECT cloud_sql_table.unique_id
+    FROM `{project}.{app_id}_main.user_history` AS BQ
+        LEFT JOIN cloud_sql_table ON BQ.unique_id = cloud_sql_table.unique_id
+    WHERE BQ.unique_id IS NULL AND BQ.date_ = '{execution_date}';
+    END IF;

@@ -1,0 +1,94 @@
+- name: No rows with invalid first_transaction_day
+  query: |
+    SELECT
+      COUNT(*) 
+    FROM `{project}.{app_id}_main.user_history`
+    WHERE date_ = '{execution_date}' AND 
+      (first_transaction_day < registration_date OR 
+      first_transaction_day > date_)
+    HAVING COUNT(*) > 0
+
+- name: No rows with invalid is_payer
+  query: |
+    SELECT
+      COUNT(*) 
+    FROM `{project}.{app_id}_main.user_history`
+    WHERE date_ = '{execution_date}' AND 
+      is_payer = FALSE AND gross_revenue_usd_total > 0
+    HAVING COUNT(*) > 0
+
+- name: No rows with invalid net_revenue_usd
+  query: |
+    SELECT 
+      COUNT(*)
+    FROM `{project}.{app_id}_main.user_history`
+    WHERE date_ = '{execution_date}' AND (
+      net_revenue_usd < 0 OR
+      (net_revenue_usd > 0 AND transactions_count = 0)
+    )
+    HAVING COUNT(*) > 0
+
+- name: No rows with invalid net_revenue_usd_total
+  query: |
+    SELECT 
+      COUNT(*)
+    FROM `{project}.{app_id}_main.user_history`
+    WHERE date_ = '{execution_date}' AND (
+      net_revenue_usd_total < 0 OR
+      (net_revenue_usd_total > 0 AND transactions_count_total = 0)
+    )
+    HAVING COUNT(*) > 0
+
+- name: No rows with invalid gross_revenue_usd or transactions_count
+  query: |
+    SELECT 
+      COUNT(*)
+    FROM `{project}.{app_id}_main.user_history`
+    WHERE date_ = '{execution_date}' AND (
+      gross_revenue_usd < 0 OR
+     -- (gross_revenue_usd > 0 AND net_revenue_usd = 0) OR
+      transactions_count < 0 OR
+      (transactions_count = 0 AND gross_revenue_usd > 0)
+    )
+    HAVING COUNT(*) > 0
+
+- name: No rows with invalid gross_revenue_usd_total or transactions_count_total
+  query: |
+    --TODO: enable last condition after net_revenue calculation is enabled
+    SELECT 
+      COUNT(*)
+    FROM `{project}.{app_id}_main.user_history`
+    WHERE date_ = '{execution_date}' AND (
+      gross_revenue_usd_total < 0 OR 
+      transactions_count_total < 0 OR
+      (transactions_count_total = 0 AND gross_revenue_usd_total > 0)
+      -- OR (gross_revenue_usd_total > 0 AND net_revenue_usd_total = 0)
+    )
+    HAVING COUNT(*) > 0
+
+- name: No rows with invalid new_payers
+  query: |
+    SELECT 
+      COUNT(*)
+    FROM `{project}.{app_id}_main.user_history`
+    WHERE date_ = '{execution_date}' AND (
+      (new_payers < 0 OR new_payers > 1) OR 
+      (new_payers = 1 AND gross_revenue_usd - gross_revenue_usd_total <> 0 AND gross_revenue_usd = 0)
+    )
+    HAVING COUNT(*) > 0
+
+- name: No rows with invalid total_payers
+  query: |
+    SELECT 
+      COUNT(*)
+    FROM `{project}.{app_id}_main.user_history`
+    WHERE date_ = '{execution_date}' AND (total_payers < 0 OR total_payers > 1)
+    HAVING COUNT(*) > 0
+
+- name: No rows with invalid daily_payers
+  query: |
+    SELECT 
+      COUNT(*)
+    FROM `{project}.{app_id}_main.user_history`
+    WHERE date_ = '{execution_date}' AND (daily_payers < 0 OR daily_payers > 1) 
+    HAVING COUNT(*) > 0

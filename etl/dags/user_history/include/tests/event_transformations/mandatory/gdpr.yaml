@@ -1,0 +1,51 @@
+- name: No duplicates in {app_id}_gdpr.atomic by unique_id, field_name, field_original_value
+  query: |
+    WITH uniq AS (
+      SELECT
+        unique_id,
+        field_name,
+        field_original_value
+      FROM `{project}.{app_id}_gdpr.atomic`
+      GROUP BY 1,2,3
+      HAVING COUNT(*) > 1
+    )
+    SELECT COUNT(*)
+    FROM uniq
+    HAVING COUNT(*) > 0
+
+- name: No ip address found in login misses from {app_id}_gdpr.atomic
+  query: |
+    WITH invalid AS (
+      SELECT user_ipaddress
+      FROM `{project}.{app_id}_raw.login` e
+      LEFT JOIN `{project}.{app_id}_gdpr.atomic` gdpr
+        ON e.unique_id = gdpr.unique_id AND gdpr.field_name = 'user_ipaddress' AND e.user_ipaddress = gdpr.field_modified_value
+      WHERE date_ = '{execution_date}' AND user_ipaddress IS NOT NULL AND gdpr.unique_id IS NULL
+    )
+    SELECT COUNT(*)
+    FROM invalid
+    HAVING COUNT(*) > 0
+
+- name: All idfa found in device context misses from {app_id}_gdpr.atomic
+  query: |
+    WITH invalid AS (
+      SELECT user_ipaddress
+      FROM `{project}.{app_id}_raw.login` e
+      LEFT JOIN `{project}.{app_id}_gdpr.atomic` gdpr
+        ON e.unique_id = gdpr.unique_id AND gdpr.field_name = 'user_ipaddress' AND e.user_ipaddress = gdpr.field_modified_value
+      WHERE date_ = '{execution_date}' AND user_ipaddress IS NOT NULL AND gdpr.unique_id IS NULL
+    )
+    SELECT COUNT(*)
+    FROM invalid
+    HAVING COUNT(*) > 0
+
+- name: No null values in {app_id}_gdpr.atomic
+  query: |
+    WITH invalid AS (
+      SELECT *
+      FROM `{project}.{app_id}_gdpr.atomic`
+      WHERE unique_id IS NULL OR field_name IS NULL OR field_original_value IS NULL OR field_modified_value IS NULL OR inserted_at IS NULL
+    )
+    SELECT COUNT(*)
+    FROM invalid
+    HAVING COUNT(*) > 0

@@ -1,0 +1,67 @@
+- name: No users disappeared from yesterday partition
+  query: |
+    SELECT COUNT(*)
+    FROM `{project}.{app_id}_main.user_history` yesterday
+    LEFT JOIN `{project}.{app_id}_main.user_history` today
+      ON today.date_ = '{execution_date}' AND yesterday.unique_id = today.unique_id
+    WHERE yesterday.date_ = DATE_SUB('{execution_date}', INTERVAL 1 DAY) AND today.unique_id IS NULL
+    HAVING COUNT(*) > 0
+
+- name: All new registered users are added in current user history partition
+  query: |
+    SELECT COUNT(*)
+    FROM `{project}.{app_id}_main.registration` reg
+    LEFT JOIN `{project}.{app_id}_main.user_history` uh
+      ON reg.date_ = uh.date_ AND reg.unique_id = uh.unique_id
+    WHERE reg.date_ = '{execution_date}' AND uh.unique_id IS NULL
+    HAVING COUNT(*) > 0
+
+- name: Total count of users in registration is same as in user history
+  query: |
+    WITH reg AS (
+      SELECT
+        COUNT(*) as cnt
+      FROM `{project}.{app_id}_main.registration`
+      WHERE date_ <= '{execution_date}'
+    ),
+    uh AS (
+      SELECT
+        COUNT(*) as cnt
+      FROM `{project}.{app_id}_main.user_history`
+      WHERE date_ = '{execution_date}'
+    )
+    SELECT reg.cnt, uh.cnt
+    FROM reg CROSS JOIN uh
+    WHERE reg.cnt != uh.cnt
+
+- name: No users with different registration data between two days
+  query: |
+    SELECT 
+      COUNT(*)
+    FROM `{project}.{app_id}_main.user_history` yesterday
+    LEFT JOIN `{project}.{app_id}_main.user_history` today
+      ON today.date_ = '{execution_date}' AND yesterday.unique_id = today.unique_id
+    WHERE 
+      yesterday.date_ = DATE_SUB('{execution_date}', INTERVAL 1 DAY) AND
+      (
+        yesterday.registration_date <> today.registration_date OR
+        yesterday.registration_event_id <> today.registration_event_id OR 
+        yesterday.registration_platform <> today.registration_platform OR
+        yesterday.registration_country <> today.registration_country
+      )
+    HAVING COUNT(*) > 0
+
+- name: No users with less days_active today compared to yesterday
+  query: |
+    SELECT 
+      COUNT(*)
+    FROM `{project}.{app_id}_main.user_history` yesterday
+    LEFT JOIN `{project}.{app_id}_main.user_history` today
+      ON today.date_ = '{execution_date}' AND yesterday.unique_id = today.unique_id
+    WHERE 
+      yesterday.date_ = DATE_SUB('{execution_date}', INTERVAL 1 DAY) AND
+      (
+        yesterday.days_active > today.days_active
+      )
+    HAVING COUNT(*) > 0
+    

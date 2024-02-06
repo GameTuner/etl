@@ -1,0 +1,42 @@
+- name: No rows with both installation_id IS NULL and user_id is NULL in {app_id}_{source_dataset_suffix}.ctx_event_context
+  query: |
+    SELECT COUNT(*)
+    FROM `{project}.{app_id}_{source_dataset_suffix}.ctx_event_context`
+    WHERE date_ = '{execution_date}' AND installation_id IS NULL AND user_id IS NULL
+    HAVING COUNT(*) > 0
+
+- name: Less than 0.1% of rows have geo_country IS NULL in {app_id}_{source_dataset_suffix}.ctx_event_context
+  query: |
+    SELECT COUNTIF(geo_country IS NULL)/COUNT(*)
+    FROM `{project}.{app_id}_{source_dataset_suffix}.ctx_event_context`
+    WHERE date_ = '{execution_date}'
+    HAVING COUNT(*) > 0 AND COUNTIF(geo_country IS NULL)/COUNT(*) > 0.001
+
+- name: Less than 0.1% of rows have geo_country_name IS NULL in {app_id}_{source_dataset_suffix}.ctx_event_context
+  query: |
+    SELECT
+      COUNTIF(geo_country_name IS NULL)/COUNT(*) < 0.001
+    FROM `{project}.{app_id}_{source_dataset_suffix}.ctx_event_context`
+    WHERE date_ = '{execution_date}'
+    HAVING COUNT(*) > 0 AND COUNTIF(geo_country_name IS NULL)/COUNT(*) > 0.001
+
+- name: No rows with null event_id in {app_id}_{source_dataset_suffix}.ctx_event_context
+  query: |
+    SELECT COUNT(*)
+    FROM `{project}.{app_id}_{source_dataset_suffix}.ctx_event_context`
+    WHERE date_ = '{execution_date}' AND event_id IS NULL
+    HAVING COUNT(*) > 0
+
+- name: No rows with null fingerprint in {app_id}_{source_dataset_suffix}.ctx_event_context
+  query: |
+    SELECT COUNT(*)
+    FROM `{project}.{app_id}_{source_dataset_suffix}.ctx_event_context`
+    WHERE date_ = '{execution_date}' AND event_fingerprint IS NULL
+    HAVING COUNT(*) > 0
+
+- name: No rows with null unique_id in {app_id}_{source_dataset_suffix}.ctx_event_context
+  query: |
+    SELECT COUNT(*)
+    FROM `{project}.{app_id}_{source_dataset_suffix}.ctx_event_context`
+    WHERE date_ = '{execution_date}' AND unique_id IS NULL
+    HAVING COUNT(*) > 0

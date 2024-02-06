@@ -1,0 +1,9 @@
+# Default ignored files
+.idea
+workspace.xml
+credentials
+*.log
+venv/*
+vscode.sh
+__pycache__
+etl/logs

@@ -1,0 +1,53 @@
+- name: The difference between Google Play revenue reported from the store and analytics has pass threshold of 5% on day {execution_date} for game {app_id}
+  query: |    
+    WITH store_revenue AS
+    (
+      SELECT 
+        date_, 
+        SUM(revenue_usd) AS revenue
+      FROM `{project}.{app_id}_main.store_google_play_sales` 
+      WHERE date_ = '{execution_date}'
+      GROUP BY date_
+    ), gt_revenue AS
+    (
+      SELECT 
+        date_,
+        SUM(gross_revenue_usd) AS revenue
+      FROM `{project}.{app_id}_main.user_history`
+      WHERE date_ = '{execution_date}'
+      AND last_login_platform = 'android'
+      GROUP BY date_
+    )
+    SELECT
+    ABS((s.revenue - g.revenue) / s.revenue * 100) AS revenue_diff_pct
+    FROM store_revenue s
+    LEFT JOIN gt_revenue g
+    USING(date_)
+    WHERE ABS((s.revenue - g.revenue) / s.revenue * 100) > 5
+
+- name: The difference between Google Play revenue reported from the store and analytics has pass threshold of 2% for last 5 days for game {app_id}
+  query: | 
+    WITH store_revenue AS
+    (
+      SELECT 
+        '1' AS key_, 
+        SUM(revenue_usd) AS revenue
+      FROM `{project}.{app_id}_main.store_google_play_sales` 
+      WHERE date_ BETWEEN DATE_SUB('{execution_date}', INTERVAL 4 DAY) AND '{execution_date}'
+      GROUP BY 1
+    ), gt_revenue AS
+    (
+      SELECT 
+        '1' AS key_,
+        SUM(gross_revenue_usd) AS revenue
+      FROM `{project}.{app_id}_main.user_history`
+      WHERE date_ BETWEEN DATE_SUB('{execution_date}', INTERVAL 4 DAY) AND '{execution_date}'
+      AND last_login_platform = 'android'
+      GROUP BY 1
+    )
+    SELECT
+    ABS((s.revenue - g.revenue) / s.revenue * 100) AS revenue_diff_pct
+    FROM store_revenue s
+    LEFT JOIN gt_revenue g
+    USING(key_)
+    WHERE ABS((s.revenue - g.revenue) / s.revenue * 100) > 2

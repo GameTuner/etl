@@ -1,0 +1,329 @@
+- name: No rows with invalid dau
+  query: |
+    SELECT COUNT(*)
+    FROM `{project}.{app_id}_main.user_history`
+    WHERE date_ = '{execution_date}' AND (
+      (dau < 0 OR dau > 1) OR
+      (dau = 0 AND registration_date = date_) OR
+      (dau = 0 AND last_login_day = date_)
+    )
+    HAVING COUNT(*) > 0
+
+- name: No rows with invalid wau or mau or mau_lost
+  query: |
+    SELECT COUNT(*)
+    FROM `{project}.{app_id}_main.user_history`
+    WHERE date_ = '{execution_date}' AND (
+      (wau < 0 OR wau > 1) OR
+      (mau < 0 OR mau > 1) OR
+      (mau_lost < 0 OR mau_lost > 1)
+    )
+    HAVING COUNT(*) > 0
+
+- name: No rows with invalid mau_reactivated
+  query: |
+    SELECT COUNT(*)
+    FROM `{project}.{app_id}_main.user_history`
+    WHERE date_ = '{execution_date}' AND (
+      (mau_reactivated < 0 OR mau_reactivated > 1) OR
+      (mau_reactivated = 1 AND (DATE_DIFF(date_, registration_date, DAY) >= 28 AND days_active_last_28_days = 0)) OR 
+      (mau_reactivated = 1 AND DATE_DIFF(date_, registration_date, DAY) < 28) 
+    )
+    HAVING COUNT(*) > 0
+
+- name: No rows with invalid last_login_day
+  query: |
+    SELECT COUNT(*)
+    FROM `{project}.{app_id}_main.user_history`
+    WHERE date_ = '{execution_date}' AND 
+      (last_login_day < registration_date OR last_login_day > date_) 
+    HAVING COUNT(*) > 0
+
+- name: No rows with invalid dau_yesterday
+  query: |
+    SELECT COUNT(*)
+    FROM `{project}.{app_id}_main.user_history`
+    WHERE date_ = '{execution_date}' AND (
+      (dau_yesterday < 0 OR dau_yesterday > 1) OR
+      (dau_yesterday = 1 AND cohort_day = 0)
+    )
+    HAVING COUNT(*) > 0
+
+- name: No rows with invalid dau_2days_ago
+  query: |
+    SELECT COUNT(*)
+    FROM `{project}.{app_id}_main.user_history`
+    WHERE date_ = '{execution_date}' AND (
+      (dau_2days_ago < 0 OR dau_2days_ago > 1) OR
+      (dau_2days_ago = 1 AND cohort_day <= 1) OR
+      (dau_2days_ago = 1 AND DATE_DIFF(date_, registration_date, DAY) < 2)
+    )
+    HAVING COUNT(*) > 0
+
+- name: No rows with invalid cohort_day or cohort_size
+  query: |
+    SELECT COUNT(*)
+    FROM `{project}.{app_id}_main.user_history`
+    WHERE date_ = '{execution_date}' AND (
+      (cohort_day < 0) OR
+      (cohort_day = 0 AND registration_date != date_) OR
+      (cohort_day > 0 AND registration_date = date_) OR
+      (cohort_day <> DATE_DIFF(date_, registration_date, DAY)) OR
+      (cohort_size <> 1)
+    )
+    HAVING COUNT(*) > 0
+
+- name: No duplicates by user_id
+  query: |
+    WITH uniq AS (
+      SELECT
+        user_id
+      FROM `{project}.{app_id}_main.user_history`
+      WHERE date_ = '{execution_date}' AND user_id IS NOT NULL
+      GROUP BY 1
+      HAVING COUNT(*) > 1
+    )
+    SELECT COUNT(*)
+    FROM uniq
+    HAVING COUNT(*) > 0
+
+- name: No duplicatest by unique_id and user_id
+  query: |
+    SELECT 
+      COUNT(*) AS cnt,
+      COUNT(DISTINCT CONCAT(unique_id, user_id)) AS distinct_cnt
+    FROM `{project}.{app_id}_main.user_history`
+    WHERE date_ = '{execution_date}' AND user_id IS NOT NULL
+    HAVING cnt <> distinct_cnt
+
+- name: No duplicates by unique_id
+  query: |
+    SELECT 
+      COUNT(*) AS cnt,
+      COUNT(DISTINCT unique_id) AS distinct_cnt
+    FROM `{project}.{app_id}_main.user_history`
+    WHERE date_ = '{execution_date}'
+    HAVING cnt <> distinct_cnt
+
+- name: No rows with registration_date in future
+  query: |
+    SELECT COUNT(*)
+    FROM `{project}.{app_id}_main.user_history`
+    WHERE date_ = '{execution_date}' AND registration_date > date_
+    HAVING COUNT(*) > 0
+
+- name: No rows with invalid days_active_last_7_days
+  query: |
+    SELECT COUNT(*)
+    FROM `{project}.{app_id}_main.user_history`
+    WHERE date_ = '{execution_date}' AND '{execution_date}' >= '2022-09-01' -- skip migrated data 
+    AND (
+      (days_active_last_7_days < 0 OR days_active_last_7_days > 7) OR
+      (days_active_last_7_days = 0 AND dau = 1) OR
+      (days_active_last_7_days = 0 AND wau = 1)
+    )
+    HAVING COUNT(*) > 0
+
+- name: No rows with invalid days_active_last_28_days
+  query: |
+    SELECT COUNT(*)
+    FROM `{project}.{app_id}_main.user_history`
+    WHERE date_ = '{execution_date}' AND '{execution_date}' >= '2022-09-01' -- skip migrated data 
+    AND (
+      (days_active_last_28_days < 0 OR days_active_last_28_days > 28) OR
+      (days_active_last_28_days = 0 AND dau = 1) OR
+      (days_active_last_28_days = 0 AND wau = 1) OR
+      (days_active_last_28_days = 0 AND mau = 1) OR
+      (days_active_last_28_days > 0 AND mau_lost = 1) OR
+      (days_active_last_28_days = 0 AND days_active_last_7_days = 1)
+    )
+    HAVING COUNT(*) > 0
+
+- name: No rows with invalid days_active_last_7_days or days_active_last_28_days
+  query: |
+    SELECT
+      unique_id,
+      MAX(IF(date_ = '{execution_date}', days_active_last_7_days, NULL)) AS days_active_last_7_days,
+      MAX(IF(date_ = '{execution_date}', days_active_last_28_days, NULL)) AS days_active_last_28_days,
+      SUM(IF(date_ >= DATE_SUB('{execution_date}' , INTERVAL 6 DAY), dau, 0)) AS sum_dau_7_days,
+      SUM(IF(date_ >= DATE_SUB('{execution_date}' , INTERVAL 27 DAY), dau, 0)) AS sum_dau_28_days
+    FROM `{project}.{app_id}_main.user_history` today
+    WHERE date_ BETWEEN DATE_SUB('{execution_date}' , INTERVAL 27 DAY) AND '{execution_date}'
+    AND '{execution_date}' >= '2022-09-01' -- skip migrated data
+    GROUP BY unique_id
+    HAVING days_active_last_7_days <> sum_dau_7_days OR days_active_last_28_days <> sum_dau_28_days
+
+- name: No rows with same registration_event_id
+  query: |
+    SELECT 
+      COUNT(*) AS cnt,
+      COUNT(DISTINCT registration_event_id) AS distinct_cnt
+    FROM `{project}.{app_id}_main.user_history`
+    WHERE date_ = '{execution_date}'
+    HAVING cnt <> distinct_cnt
+
+- name: No rows with invalid registration_platform
+  query: |
+    SELECT
+      COUNT(*) AS cnt
+    FROM `{project}.{app_id}_main.user_history`
+    WHERE date_ = '{execution_date}' AND registration_platform NOT IN ('android', 'ios', 'mob', 'pc')
+    HAVING COUNT(*) > 0
+
+- name: No rows with invalid days_active
+  query: |
+    SELECT
+      COUNT(*) AS cnt
+    FROM `{project}.{app_id}_main.user_history`
+    WHERE date_ = '{execution_date}' AND days_active <= 0
+    HAVING COUNT(*) > 0
+
+- name: No rows with invalid previous_login_day
+  query: |
+    SELECT
+      COUNT(*) 
+    FROM `{project}.{app_id}_main.user_history`
+    WHERE date_ = '{execution_date}' AND 
+      (previous_login_day < registration_date OR 
+      previous_login_day >= date_  OR
+      previous_login_day > last_login_day)
+    HAVING COUNT(*) > 0
+
+- name: No rows with invalid session_count
+  query: |
+    SELECT 
+      COUNT(*)
+    FROM `{project}.{app_id}_main.user_history`
+    WHERE date_ = '{execution_date}' AND (
+      sessions_count < 0 OR
+      (sessions_count = 0 AND dau = 1)
+    )
+    HAVING COUNT(*) > 0
+
+- name: No rows with invalid playtime
+  query: |
+    SELECT 
+      COUNT(*)
+    FROM `{project}.{app_id}_main.user_history`
+    WHERE date_ = '{execution_date}' AND (
+      playtime < 0 OR
+      (playtime > 0 AND sessions_count = 0)
+    )
+    HAVING COUNT(*) > 0
+
+- name: No rows with invalid sessions_count_total
+  query: |
+    SELECT 
+      COUNT(*)
+    FROM `{project}.{app_id}_main.user_history`
+    WHERE date_ = '{execution_date}' AND (
+      sessions_count_total < sessions_count OR
+      sessions_count_total < 0
+    )
+    HAVING COUNT(*) > 0
+
+- name: No rows with invalid playtime_total
+  query: |
+    SELECT 
+      COUNT(*)
+    FROM `{project}.{app_id}_main.user_history`
+    WHERE date_ = '{execution_date}' AND (
+      playtime_total < playtime OR
+      playtime_total < 0
+    )
+    HAVING COUNT(*) > 0
+
+- name: No rows with invalid previous_transaction_day
+  query: |
+    SELECT
+      COUNT(*) 
+    FROM `{project}.{app_id}_main.user_history`
+    WHERE date_ = '{execution_date}' AND 
+      (previous_transaction_day < registration_date OR 
+      previous_transaction_day > date_ OR
+      previous_transaction_day > last_transaction_day)
+    HAVING COUNT(*) > 0
+
+- name: No rows with invalid last_transaction_day
+  query: |
+    SELECT
+      COUNT(*) 
+    FROM `{project}.{app_id}_main.user_history`
+    WHERE date_ = '{execution_date}' AND 
+      (last_transaction_day < registration_date OR 
+      last_transaction_day > date_ OR
+      (last_transaction_day = date_ AND is_payer = FALSE))
+    HAVING COUNT(*) > 0
+
+- name: No users invalid is_payer
+  query: |
+    SELECT 
+      COUNT(*)
+    FROM `{project}.{app_id}_main.user_history` yesterday
+    LEFT JOIN `{project}.{app_id}_main.user_history` today
+      ON today.date_ = '{execution_date}' AND yesterday.unique_id = today.unique_id
+    WHERE 
+      yesterday.date_ = DATE_SUB('{execution_date}', INTERVAL 1 DAY) AND
+      (
+        yesterday.is_payer IS FALSE AND today.is_payer IS TRUE AND today.first_transaction_day <> today.date_
+      )
+    HAVING COUNT(*) > 0
+
+- name: No rows with invalid is_repeated_payer
+  query: |
+    SELECT
+      COUNT(*) 
+    FROM `{project}.{app_id}_main.user_history`
+    WHERE date_ = '{execution_date}' AND 
+      ((is_repeated_payer AND DATE_DIFF(last_transaction_day, first_transaction_day, DAY) = 0) OR
+      (is_repeated_payer = FALSE AND DATE_DIFF(last_transaction_day, first_transaction_day, DAY) > 0))
+    HAVING COUNT(*) > 0
+
+- name: No rows with invalid days_since_last_purchase
+  query: |
+    SELECT 
+      COUNT(*)
+    FROM `{project}.{app_id}_main.user_history`
+    WHERE date_ = '{execution_date}' AND (
+      days_since_last_purchase < 0 OR 
+      (days_since_last_purchase <> DATE_DIFF(date_, last_transaction_day, DAY))
+    )
+    HAVING COUNT(*) > 0
+
+- name: No rows with NULL in a required field
+  query: |
+    SELECT COUNT(*)
+    FROM `{project}.{app_id}_main.user_history`
+    WHERE date_ = '{execution_date}' AND (
+        date_ IS NULL OR
+        (last_installation_id IS NULL AND user_id IS NULL) OR
+        unique_id IS NULL OR
+        registration_date IS NULL OR
+        registration_event_id IS NULL OR
+        registration_platform IS NULL OR
+        days_active_last_7_days IS NULL OR
+        days_active_last_28_days IS NULL OR
+        days_active IS NULL OR
+        last_login_day IS NULL OR
+        is_payer IS NULL OR
+        is_repeated_payer IS NULL OR
+        cohort_day IS NULL OR
+        cohort_size IS NULL OR
+        sessions_count IS NULL OR
+        playtime IS NULL OR
+        sessions_count_total IS NULL OR
+        playtime_total IS NULL OR
+        dau IS NULL OR
+        wau IS NULL OR
+        mau IS NULL OR
+        mau_reactivated IS NULL OR
+        mau_lost IS NULL OR
+        gross_revenue_usd IS NULL OR
+        gross_revenue_usd_total IS NULL OR
+        transactions_count IS NULL OR
+        transactions_count_total IS NULL OR
+        new_payers IS NULL OR
+        total_payers IS NULL OR
+        daily_payers IS NULL
+    )
+    HAVING COUNT(*) > 0

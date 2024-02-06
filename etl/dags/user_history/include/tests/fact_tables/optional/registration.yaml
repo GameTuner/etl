@@ -1,0 +1,7 @@
+- name: Contexts columns should not be NULL.
+  query: |
+    SELECT COUNT(*)
+    FROM `{project}.{app_id}_main.registration`
+    WHERE date_ = "{execution_date}" AND NOT backfill_mode AND
+    (ctx_device_context IS NULL OR ctx_session_context IS NULL)
+    HAVING COUNT(*) > 0

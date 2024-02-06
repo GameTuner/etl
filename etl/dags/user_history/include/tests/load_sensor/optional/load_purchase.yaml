@@ -1,0 +1,13 @@
+- name: No purchase events where price_usd is null if price is supplied {app_id}_{source_dataset_suffix}.purchase
+  query: |
+    SELECT COUNT(*)
+    FROM `{project}.{app_id}_{source_dataset_suffix}.purchase`
+    WHERE date_ = '{execution_date}' AND params.price IS NOT NULL AND params.price_currency IS NOT NULL AND params.price_usd IS NULL
+    HAVING COUNT(*) > 0
+
+- name: No purchase events with paid_usd NULL in {app_id}_{source_dataset_suffix}.purchase
+  query: |
+    SELECT COUNT(*)
+    FROM `{project}.{app_id}_{source_dataset_suffix}.purchase`
+    WHERE date_ = '{execution_date}' AND params.paid_usd IS NULL
+    HAVING COUNT(*) > 0

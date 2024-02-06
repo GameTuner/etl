@@ -1,0 +1,11 @@
+- name: No duplicate unique_id rows in {app_id}_main.registration table
+  query: |
+    SELECT COUNT(DISTINCT unique_id), COUNT(unique_id)
+    FROM `{project}.{app_id}_main.registration`
+    HAVING COUNT(DISTINCT unique_id) != COUNT(unique_id)
+
+- name: No duplicate user_id rows in {app_id}_main.registration table
+  query: |
+    SELECT COUNT(DISTINCT user_id), COUNT(user_id)
+    FROM `{project}.{app_id}_main.registration`
+    HAVING COUNT(DISTINCT user_id) != COUNT(user_id)

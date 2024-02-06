@@ -1,0 +1,41 @@
+- name: Deduplicated login count in {app_id}_{source_dataset_suffix}.ctx_event_context matches deduplicated login count in {app_id}_raw.ctx_event_context
+  query: |
+    WITH load AS (
+      SELECT
+        COUNT(DISTINCT event_fingerprint) AS cnt
+      FROM `{project}.{app_id}_{source_dataset_suffix}.ctx_event_context`
+      WHERE event_name = 'login' AND (sandbox_mode IS FALSE OR sandbox_mode IS NULL) AND date_ = '{execution_date}'
+        AND event_fingerprint NOT IN (
+          SELECT event_fingerprint
+          FROM `{project}.{app_id}_{source_dataset_suffix}.ctx_event_context`
+          WHERE date_ = DATE_SUB('{execution_date}', INTERVAL 1 DAY)
+        )
+      AND unique_id NOT IN (SELECT unique_id FROM `{project}.{app_id}_fix.excluded_unique_ids`)
+    ),
+    raw AS (
+      SELECT
+        COUNT(*) AS cnt
+      FROM `{project}.{app_id}_raw.ctx_event_context`
+      WHERE event_name = 'login' AND date_ = '{execution_date}'
+    )
+    SELECT load.cnt, raw.cnt
+    FROM load CROSS JOIN raw
+    WHERE load.cnt != 0 AND load.cnt != raw.cnt
+
+- name: Deduplicated login count in {app_id}_raw.ctx_event_context matches deduplicated login count in {app_id}_raw.login
+  query: |
+    WITH device AS (
+      SELECT
+        COUNT(*) AS cnt
+      FROM `{project}.{app_id}_raw.ctx_event_context`
+      WHERE event_name = 'login' AND date_ = '{execution_date}'
+    ),
+    login AS (
+      SELECT
+        COUNT(*) AS cnt
+      FROM `{project}.{app_id}_raw.login`
+      WHERE date_ = '{execution_date}'
+    )
+    SELECT device.cnt, login.cnt
+    FROM device CROSS JOIN login
+    WHERE device.cnt != login.cnt

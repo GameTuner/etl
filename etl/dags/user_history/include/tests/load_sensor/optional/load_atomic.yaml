@@ -1,0 +1,24 @@
+- name: No invalid platform values in {app_id}_{source_dataset_suffix}.ctx_event_context
+  query: |
+    SELECT COUNT(*)
+    FROM `{project}.{app_id}_{source_dataset_suffix}.ctx_event_context`
+    WHERE date_ = '{execution_date}' AND platform NOT IN ('android', 'ios', 'pc')
+    HAVING COUNT(*) > 0
+
+- name: Difference between {app_id}_{source_dataset_suffix}.ctx_event_context and {app_id}_{source_dataset_suffix}.login is less than 0.01%
+  query: |
+    WITH ctx AS (
+      SELECT
+        COUNT(*) as cnt
+      FROM `{project}.{app_id}_{source_dataset_suffix}.ctx_event_context`
+      WHERE event_name = 'login' AND date_ = '{execution_date}'
+    ),
+    login AS (
+      SELECT
+        COUNT(*) as cnt
+      FROM `{project}.{app_id}_{source_dataset_suffix}.login`
+      WHERE date_ = '{execution_date}'
+    )
+    SELECT ABS(login.cnt - ctx.cnt) * 100 / ((login.cnt + ctx.cnt) / 2) 
+    FROM ctx CROSS JOIN login
+    WHERE ctx.cnt > 0 AND login.cnt > 0 AND ABS(login.cnt - ctx.cnt) * 100 / ((login.cnt + ctx.cnt) / 2) > 0.01

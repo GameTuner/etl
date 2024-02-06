@@ -1,0 +1,36 @@
+- name: There is not same number of rows in session table and distinct values by unique_id and session_id
+  query: |
+    WITH sessions AS (
+      SELECT unique_id, session_id, COUNT(*) as cnt
+      FROM `{project}.{app_id}_main.session`
+      WHERE  date_ = '{execution_date}'
+      GROUP BY unique_id, session_id
+      HAVING COUNT(*) > 1
+    )
+    SELECT COUNT(*)
+    FROM sessions
+    HAVING COUNT(*) > 0
+
+- name: Field session_id can not have NULL value
+  query: |
+    SELECT COUNT(*) FROM `{project}.{app_id}_main.session`
+    WHERE session_id IS NULL AND date_ = '{execution_date}'
+    HAVING COUNT(*) > 0
+
+- name: Field unique_id can not have NULL value
+  query: |
+    SELECT COUNT(*) FROM `{project}.{app_id}_main.session`
+    WHERE unique_id IS NULL AND date_ = '{execution_date}'
+    HAVING COUNT(*) > 0
+
+- name: Session end time can not be less than session start time
+  query: |
+    SELECT COUNT(*) FROM `{project}.{app_id}_main.session`
+    WHERE session_end_ts < session_start_ts AND date_ = '{execution_date}'
+    HAVING COUNT(*) > 0
+
+- name: Session length can not be less than 0
+  query: |
+    SELECT COUNT(*) FROM `{project}.{app_id}_main.session`
+    WHERE session_length < 0 AND date_ = '{execution_date}'
+    HAVING COUNT(*) > 0

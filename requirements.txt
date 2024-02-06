@@ -1,0 +1,4 @@
+PyYAML==6.0
+slack-sdk==3.19.5:q
+apache-airflow[celery]==2.5.1
+apache-airflow[google]==2.5.1

@@ -1,0 +1,13 @@
+- name: No duplicate sessions by unique_id in {app_id}_raw.login
+  query: |
+    WITH invalid AS (
+      SELECT 
+        unique_id, ctx_session_context.session_id, COUNT(*) AS cnt
+      FROM `{project}.{app_id}_raw.login`
+      WHERE date_ = '{execution_date}' 
+      GROUP BY 1,2
+      HAVING COUNT(*) > 1
+    )
+    SELECT COUNT(*)
+    FROM invalid
+    HAVING COUNT(*) > 0
