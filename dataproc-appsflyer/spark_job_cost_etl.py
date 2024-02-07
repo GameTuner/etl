@@ -390,10 +390,11 @@ for report_type in arg_report:
     dist_dates = df_load.select("date_").distinct().collect()
     dist_dates_str = ', '.join('"{}"'.format(item.date_) for item in dist_dates)
 
-    # Create query to delete distinct dates
-    logger.info(f"delete dates {dist_dates_str} from table {table_id}")
-    delete_query = "DELETE FROM `{}.{}.{}` WHERE date_ IN ({})".format(table.project, table.dataset_id, table.table_id, dist_dates_str)
-    bigquery_query(delete_query)
+    if len(dist_dates) > 0:
+        # Create query to delete distinct dates
+        logger.info(f"delete dates {dist_dates_str} from table {table_id}")
+        delete_query = "DELETE FROM `{}.{}.{}` WHERE date_ IN ({})".format(table.project, table.dataset_id, table.table_id, dist_dates_str)
+        bigquery_query(delete_query)
 
     logger.info(f"write data to temp table: {table_id}")
     df_load.write.format('com.google.cloud.spark.bigquery') \
