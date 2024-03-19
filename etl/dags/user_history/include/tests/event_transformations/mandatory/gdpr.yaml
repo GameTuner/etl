@@ -6,6 +6,7 @@
         field_name,
         field_original_value
       FROM `{project}.{app_id}_gdpr.atomic`
+      WHERE field_original_value IS NOT NULL
       GROUP BY 1,2,3
       HAVING COUNT(*) > 1
     )
@@ -44,7 +45,8 @@
     WITH invalid AS (
       SELECT *
       FROM `{project}.{app_id}_gdpr.atomic`
-      WHERE unique_id IS NULL OR field_name IS NULL OR field_original_value IS NULL OR field_modified_value IS NULL OR inserted_at IS NULL
+      WHERE (unique_id IS NULL OR field_name IS NULL OR field_original_value IS NULL OR field_modified_value IS NULL OR inserted_at IS NULL)
+      AND deleted_at IS NULL
     )
     SELECT COUNT(*)
     FROM invalid
